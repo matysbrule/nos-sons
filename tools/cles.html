@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Clés des notifications</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .key { margin-top: 22px; }
+    .key h2 { font-size: 1rem; margin: 0 0 4px; }
+    .key p { margin: 0 0 8px; color: var(--muted); font-size: .92rem; line-height: 1.45; }
+    .key textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; min-height: 0; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <main class="screen-msg" style="padding-top: 6vh">
+      <h1>Clés des notifications</h1>
+      <p class="lead">Les clés sont créées dans ton navigateur : rien n'est envoyé nulle part. Génère-les une seule fois et copie-les tout de suite, la page ne les garde pas.</p>
+      <button class="btn" id="gen">Générer les clés</button>
+      <div id="out" hidden>
+        <section class="key">
+          <h2>VAPID_PUBLIC_KEY</h2>
+          <p>À mettre dans <strong>config.js</strong> et dans les secrets Supabase.</p>
+          <div class="row"><textarea id="pub" rows="3" readonly></textarea><button class="btn ghost small" data-copy="pub">Copier</button></div>
+        </section>
+        <section class="key">
+          <h2>VAPID_PRIVATE_KEY</h2>
+          <p>Uniquement dans les secrets Supabase. Ne la mets jamais dans un fichier du site.</p>
+          <div class="row"><textarea id="priv" rows="2" readonly></textarea><button class="btn ghost small" data-copy="priv">Copier</button></div>
+        </section>
+        <section class="key">
+          <h2>NOTIFY_SECRET</h2>
+          <p>Dans les secrets Supabase et dans <strong>notifications.sql</strong> (à la place de TON_SECRET).</p>
+          <div class="row"><textarea id="secret" rows="2" readonly></textarea><button class="btn ghost small" data-copy="secret">Copier</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script>
+    const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+    document.getElementById("gen").addEventListener("click", async (e) => {
+      const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+      document.getElementById("pub").value = b64u(await crypto.subtle.exportKey("raw", kp.publicKey));
+      document.getElementById("priv").value = (await crypto.subtle.exportKey("jwk", kp.privateKey)).d;
+      document.getElementById("secret").value = b64u(crypto.getRandomValues(new Uint8Array(24)));
+      document.getElementById("out").hidden = false;
+      e.target.textContent = "Générer de nouvelles clés";
+    });
+
+    document.addEventListener("click", async (e) => {
+      const id = e.target.dataset && e.target.dataset.copy;
+      if (!id) return;
+      const field = document.getElementById(id);
+      try { await navigator.clipboard.writeText(field.value); }
+      catch { field.select(); document.execCommand("copy"); }
+      e.target.textContent = "Copié";
+      setTimeout(() => (e.target.textContent = "Copier"), 1500);
+    });
+  </script>
+</body>
+</html>
